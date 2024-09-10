@@ -1,3 +1,5 @@
+//Using DockerHub token but DockerHub usernmae is harcoded
+
 pipeline{
     agent any
     stages
@@ -37,3 +39,52 @@ pipeline{
             }   
     }
 }
+
+
+
+
+
+
+// Using Dockerhub Username and Token both are used as ENV variable which is set in Jenkins with below process
+Go to Manage Jenkins > Manage Credentials.
+Select the appropriate domain or choose (global) for global credentials.
+Click on Add Credentials on the left side.
+Select Username with password from the Kind dropdown.
+Username: Enter your Docker Hub username.
+Password: Enter the Docker Hub access token you copied earlier.
+
+
+pipeline {
+    agent any
+    stages {
+        stage('Code') {
+            steps {
+                echo "Cloning the code"
+                git branch: 'main', url: 'https://github.com/kkarthikp/django-notes-app.git'
+            }
+        }
+        stage('Build') {
+            steps {
+                echo "Building the image"
+                sh 'docker build -t notes-app .'
+            }
+        }
+        stage('Push to DockerHub') {
+            steps {
+                echo "Pushing the image to DockerHub"
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_TOKEN')]) {
+                    sh 'echo $DOCKER_TOKEN | docker login -u $DOCKER_USERNAME --password-stdin'
+                    sh 'docker tag notes-app:latest $DOCKER_USERNAME/notes-app:latest'
+                    sh 'docker push $DOCKER_USERNAME/notes-app:latest'
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                echo "Deploying in the container"
+                sh 'docker-compose down && docker-compose up -d'
+            }
+        }
+    }
+}
+
